@@ -1,6 +1,7 @@
 use regex::Regex;
 use reqwest;
 use scraper::{Html, Selector};
+use std::collections::BTreeMap;
 use std::error::Error;
 struct Stamp {
     country_name: String,
@@ -101,13 +102,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let html_content = fetch_data(url).await?;
     let stamps = process_data(&html_content)?;
 
+    // Group stamps by country (BTreeMap keeps keys sorted alphabetically)
+    let mut country_stamps: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    
     for stamp in stamps {
-        let formatted_output: Vec<String> = stamp
-            .stamp_numbers
-            .iter()
-            .map(|number| format!("{} {}", stamp.country_name, number))
-            .collect();
-        println!("{}", formatted_output.join(", "));
+        let entry = country_stamps.entry(stamp.country_name.clone()).or_insert_with(Vec::new);
+        entry.extend(stamp.stamp_numbers);
+    }
+
+    // Print grouped results in alphabetical order by country
+    for (country, stamp_numbers) in country_stamps {
+        if !country.is_empty() {
+            println!("\n{}:", country);
+            println!("{}", "-".repeat(country.len() + 1));
+            for number in stamp_numbers {
+                println!("{} {}", country, number);
+            }
+        }
     }
 
     Ok(())
